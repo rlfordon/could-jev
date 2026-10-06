@@ -1,0 +1,16 @@
+{
+  "name": "could-jev",
+  "owner": {
+    "name": "Rebecca Fordon"
+  },
+  "metadata": {
+    "description": "The could-jev skill: is this a job for Jev?"
+  },
+  "plugins": [
+    {
+      "name": "could-jev",
+      "source": "./",
+      "description": "Quick gut-check on whether Jev (TypeSafe's System One typed-judgment model) could help with what you're building."
+    }
+  ]
+}
