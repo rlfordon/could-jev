@@ -1,6 +1,6 @@
 # My Jev track record
 
-Personal log for the could-jev skill. Lives at `~/.claude/could-jev/history.md`. Newest entries go at the bottom of "Experiments". Standing rules here outrank the skill's generic field notes.
+Personal log for the could-jev skill. Lives at `~/.claude/could-jev/history.md`. Newest entries go at the bottom of "Experiments". Standing rules here outrank the skill's generic rules of thumb.
 
 ## Standing rules
 

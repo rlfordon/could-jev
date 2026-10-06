@@ -8,7 +8,7 @@ Ask Claude something like *"could jev help here?"* or *"is this a jev thing?"*. 
 
 ```
 **Verdict:** Partly — the easy 80% is a clean yes/no; the ambiguous middle needs an LLM.
-**Pattern:** Funnel before the LLM (FIELD #3), Uncertainty spotlight (UNTRIED).
+**Pattern:** Funnel before the LLM (TESTED), Uncertainty spotlight (UNTRIED).
 **Sketch:** state = ...; questions = ...; code does ...
 **Closest prior:** ...
 **Watch out:** ...
@@ -23,14 +23,17 @@ It doesn't call Jev itself. It's a design gut-check.
 | File | What it is |
 |---|---|
 | `SKILL.md` | The instructions and answer format. |
-| `patterns.md` | 26 Jev patterns grouped by what they unlock, each tagged FIELD-tested, DOCUMENTED, or UNTRIED. |
-| `field-notes.md` | Standing rules and anonymized numbers from eight real experiments (mostly legal-research tooling). |
-| `capabilities.md` | Factsheet: question types, limits, price, speed, access, failure modes. Checked 2026-10-05. Re-check docs.typesafe.ai if it looks stale. |
+| `patterns.md` | Rules of thumb, "worth testing" hunches, and 31 Jev patterns grouped by what they unlock, each tagged TESTED, DOCUMENTED, COMMUNITY, or UNTRIED. |
+| `capabilities.md` | Factsheet: question types, limits, price, speed, access, failure modes. Checked 2026-10-06. Re-check docs.typesafe.ai if it looks stale. |
 | `history-template.md` | The starting shape of your personal experiment log. |
 
 ## Your own history
 
-Say *"log this jev result"* after an experiment and the skill appends it to `~/.claude/could-jev/history.md`. It creates that file from the template the first time. Your history and standing rules then take priority over the generic field notes. The history lives outside the skill folder, so updating the plugin never overwrites it.
+Say *"log this jev result"* after an experiment and the skill appends it to `~/.claude/could-jev/history.md`. It creates that file from the template the first time. Your history and standing rules then take priority over the generic rules of thumb. The history lives outside the skill folder, so updating the plugin never overwrites it.
+
+## Staying current
+
+Jev changes quickly. The skill is refreshed by a monthly sweep (see [`maintenance/sweep.md`](maintenance/sweep.md)). The sweep checks TypeSafe's docs and releases and looks for new things people are building, then opens a PR with a dated report in `maintenance/sweeps/`. To pick up a refresh, update the plugin (`/plugin marketplace update could-jev`). If the factsheet's "Checked" date gets old, the skill will say so.
 
 ## Install
 

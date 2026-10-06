@@ -1,6 +1,6 @@
 {
   "name": "could-jev",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Quick gut-check on whether Jev (TypeSafe's System One typed-judgment model) could help with what you're building, backed by a pattern catalog and field notes from real experiments.",
   "author": { "name": "Rebecca Fordon" },
   "repository": "https://github.com/rlfordon/could-jev",
