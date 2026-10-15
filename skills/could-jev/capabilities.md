@@ -50,9 +50,10 @@ In text, it can only "point" at things your code enumerates as options: spans, l
   - PNG or JPEG only (WebP and GIF are rejected). Sent as `multipart/form-data`.
   - An image can go anywhere in `state`, `instructions` or `criteria`, by a placeholder reference listed in an `assets` map. So you can ask about one photo, compare two ("is A the product in B?"), or use reference images as Choice options.
   - Billed as input tokens at the normal rate. One third-party report put a 1181×1568 photo at about 5,200 tokens (about $0.0002). **Every mention of the reference inserts the image again**, and is billed again.
-  - Reported (unconfirmed) limits: 16 MiB per image, 256 to 1,568 px per side.
+  - Reported (not in official docs seen): 16 MiB per image, and 256 to 1,568 px per side. Smaller images return 400 (one user hit this at 278 px, so upscale small crops) and larger ones return 413. EXIF orientation is ignored, so rotate first. One guide says any request with an image runs in long-context mode.
+  - Many people send screenshots, so Choice over numbered on-screen elements is the common shape for UI agents.
   - Python SDK: `Image(path_or_bytes)`, `Image.from_base64`, `Image.from_pil` (`pil` extra). It doesn't add the opt-in header for you, so pass it in `default_headers`. JS SDK: `image()`, the `withAssets` template tag. The Vercel AI SDK provider adds the header itself. The **Vercel AI Gateway rejects files**, so use TypeSafe direct.
-- **Box questions:** see the table above. Only on 1.14 (`jev-preview` for now). An anecdotal test located 30 of 36 targets when it asked four per-edge questions instead, vs. 20 of 36 for the raw box. Draw it and check before you trust it.
+- **Box questions:** see the table above. Only on 1.14 (`jev-preview` for now); 1.13 rejects it with a 400. An anecdotal test located 30 of 36 targets when it asked four per-edge questions instead, vs. 20 of 36 for the raw box. Draw it and check before you trust it.
 - **Long context** (`TypeSafe-Danger-Zone-Long-Context: true`; 1.13 and 1.14): raises both limits to 262k tokens at the same per-token price. TypeSafe calls it slower and *less accurate*, which fits jaggedness item 3 (distractors). Windowing is still the better move.
 
 **Speed:**
@@ -151,6 +152,8 @@ Field reports, not on TypeSafe's list:
 - **Losing to cheaper or narrower alternatives:**
   - A tiny distilled specialist beat Jev on a narrow form-filling task (99.7% vs. 83.6%).
   - Batched offline LLM prompts can match its cost.
+- **Adversarial text:** in one guardrail test (1,000 items), Jev caught 78% of adversarial rewrites vs. 94% for Haiku 4.5, at about 6x lower latency and 60x lower cost.
+- **1.14 vs. 1.13 (early, community):** one 1,136-question benchmark went from 80.1% to 82.0%, with the largest gain on verbal spatial tracking and a small drop on exception and priority rules. Multi-step sequential procedures stayed very weak (6 of 42). One migration test saw identical failures on both versions.
 - **Benchmark gap:** on TypeSafe's own WorkflowEvals, Jev scored about 68% vs. about 74% for a frontier LLM, at a tiny fraction of the cost and latency.
 
 ## Fit signals
@@ -158,4 +161,5 @@ Field reports, not on TypeSafe's list:
 - **Jev:** the answer space is known in advance; it's one narrow judgment; the evidence fits in the state; an expert could judge it in seconds; code branches on the result; you'd want to ask it thousands of times or in real time.
 - **LLM:** you need prose output or a rationale/audit trail; the options aren't known; it needs a retrieval or tool loop mid-decision; or it takes multi-hop reasoning.
 - **Code:** arithmetic, dates, exact lookups, known rules, regex-findable units, security rules, threshold policy.
+- **Images (experimental):** the judgment is visible at a glance (damaged? same product? is the element on screen?), and a crop or a pair of images holds the evidence. Not for pixel-exact geometry, and nothing should go to production before TypeSafe drops the "danger zone" label.
 - **Always:** add `none` or an absolute Noul; validate on in-domain labels, including hard cases; log the model version.

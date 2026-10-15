@@ -2,7 +2,7 @@
 
 A Claude skill that answers one question fast: **could [Jev](https://docs.typesafe.ai) help with what I'm building?**
 
-Jev is TypeSafe's "System One" model. It returns typed answers (yes/no, one-of-N, ordinal scores) with full probability distributions, at a fraction of a cent per thousand documents and 0.1 to 0.4 s per call. The obvious use is "classify X". The interesting uses are things like funnels in front of an LLM, censuses instead of samples, locators, paragraph heat maps, pairwise judgments, uncertainty spotlights, and agent tripwires. This skill helps you spot those.
+Jev is TypeSafe's "System One" model. It returns typed answers (yes/no, one-of-N, ordinal scores) with full probability distributions, at a fraction of a cent per thousand documents and 0.1 to 0.4 s per call. The obvious use is "classify X". The interesting uses are things like funnels in front of an LLM, censuses instead of samples, locators, paragraph heat maps, pairwise judgments, uncertainty spotlights, and agent tripwires, and (experimentally, since Jev 1.14) image checks and Box localization. This skill helps you spot those.
 
 Ask Claude something like *"could jev help here?"* or *"is this a jev thing?"*. You get back about ten lines:
 
@@ -23,8 +23,8 @@ It doesn't call Jev itself. It's a design gut-check.
 | File | What it is |
 |---|---|
 | `SKILL.md` | The instructions and answer format. |
-| `patterns.md` | Rules of thumb, "worth testing" hunches, and 31 Jev patterns grouped by what they unlock, each tagged TESTED, DOCUMENTED, COMMUNITY, or UNTRIED. |
-| `capabilities.md` | Factsheet: question types, limits, price, speed, access, failure modes. Checked 2026-10-06. Re-check docs.typesafe.ai if it looks stale. |
+| `patterns.md` | Rules of thumb, "worth testing" hunches, and 32 Jev patterns grouped by what they unlock, each tagged TESTED, DOCUMENTED, COMMUNITY, or UNTRIED. |
+| `capabilities.md` | Factsheet: question types, limits, price, speed, access, failure modes. Checked 2026-10-15. Re-check docs.typesafe.ai if it looks stale. |
 | `history-template.md` | The starting shape of your personal experiment log. |
 
 ## Your own history
