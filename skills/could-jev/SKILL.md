@@ -1,6 +1,6 @@
 ---
 name: could-jev
-description: Quick gut-check on whether Jev (TypeSafe's System One typed-judgment model) could help with whatever the user is building right now, grounded in a catalog of non-obvious Jev patterns (funnels, censuses, taxonomies, locators, heat maps, pairwise judgments, uncertainty spotlights, tripwires, live feedback), rules of thumb from real use, and the user's own logged Jev results. Use when they ask "could jev do this/help here", "would jev work for", "is this a jev thing", "jev for X?", "what would jev be good for in this project", or wonder aloud about using a cheap, fast typed-judgment model in a design. Also use to log the result of a Jev experiment ("log this jev result"). Answers in a few lines; does not call Jev itself.
+description: Quick gut-check on whether Jev (TypeSafe's System One typed-judgment model) could help with whatever the user is building right now, grounded in a catalog of non-obvious Jev patterns (funnels, censuses, taxonomies, locators, heat maps, pairwise judgments, uncertainty spotlights, tripwires, live feedback, and experimental image checks and Box localization), rules of thumb from real use, and the user's own logged Jev results. Use when they ask "could jev do this/help here", "would jev work for", "is this a jev thing", "jev for X?", "what would jev be good for in this project", or wonder aloud about using a cheap, fast typed-judgment model in a design. Also use to log the result of a Jev experiment ("log this jev result"). Answers in a few lines; does not call Jev itself.
 ---
 
 # Could Jev do this?
@@ -21,7 +21,7 @@ Outside it:
 
 1. **Pin down the thing.** Use the conversation and, if needed, a glance at the code or doc in play. Don't ask a clarifying question unless you truly can't tell what's being built; state your assumption instead.
 2. **Read `patterns.md` and the user's history if it exists.** Read `capabilities.md` only when a limit matters (token budget, option counts, question-type behavior, price, access), and always glance at its "Checked" date: if it's more than about 60 days old, add a one-line note that the factsheet may be stale and that the user should update the skill or check docs.typesafe.ai.
-3. **Look past "is the output a label?"** Ask which of Jev's levers this task could use: nearly free, fast, full distributions, many questions per state, several texts per state. The best answers often reshape the task rather than swapping a model into it: a census instead of a sample, a heat map instead of a search, a funnel in front of an existing LLM step.
+3. **Look past "is the output a label?"** Ask which of Jev's levers this task could use: nearly free, fast, full distributions, many questions per state, several texts per state, and (experimentally) images and Box regions. If the task involves photos, screenshots or scanned pages, consider the image patterns, but tag any image answer as experimental ("danger zone" opt-in) and say that a quick test on the user's own images comes first. The best answers often reshape the task rather than swapping a model into it: a census instead of a sample, a heat map instead of a search, a funnel in front of an existing LLM step.
 4. **Answer in this format**, no preamble:
 
 ```
