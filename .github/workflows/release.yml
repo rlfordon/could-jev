@@ -1,0 +1,39 @@
+name: Release
+
+# Publishes a GitHub release with could-jev.zip whenever a merge to main
+# bumps the version in .claude-plugin/plugin.json. Run it by hand to
+# release a version that was merged before this workflow existed.
+on:
+  push:
+    branches: [main]
+    paths: ['.claude-plugin/plugin.json']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Release the version in plugin.json, if it's new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(jq -r .version .claude-plugin/plugin.json)"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag is already released; nothing to do."
+            exit 0
+          fi
+          # Tag the commit that bumped the version, and build the zip from it.
+          commit=$(git log -1 --format=%H -- .claude-plugin/plugin.json)
+          git checkout -q "$commit"
+          subject=$(git log -1 --format=%s "$commit")
+          report=$(ls maintenance/sweeps/*.md | sort | tail -1)
+          (cd skills && zip -rq ../could-jev.zip could-jev)
+          gh release create "$tag" could-jev.zip --target "$commit" --title "$tag" \
+            --notes "$subject. See $report."

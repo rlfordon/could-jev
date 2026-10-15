@@ -53,3 +53,7 @@ Create `maintenance/sweeps/YYYY-MM-DD.md` with these sections:
 - **Seen:** every source reviewed, so the next sweep can skip it.
 
 Then make the skill edits, bump `version` in `.claude-plugin/plugin.json` (patch for factsheet-only changes, minor for new patterns), and open a PR titled `Sweep YYYY-MM-DD` whose body is the report. If nothing material changed, still commit the report, but don't bump the version.
+
+## 5. Release
+
+Releasing is automatic. When a PR that bumps the version merges to `main`, the Release workflow (`.github/workflows/release.yml`) tags the version, builds `could-jev.zip` from `skills/could-jev/`, and publishes a GitHub release that points to the sweep report. Plugin users get the new version on their next `/plugin marketplace update could-jev`, and Claude.ai users get the new zip from the latest release. Don't tag, zip or release by hand. If a release is missing, run the workflow from the Actions tab; it skips any version that's already released.
