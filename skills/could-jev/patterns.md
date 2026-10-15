@@ -13,11 +13,11 @@ Every pattern below is some combination of those. "Classify X" is the least inte
 
 These held up repeatedly in practice and agree with TypeSafe's own guidance or with independent reports.
 
-- **Window first.** Send located passages or context windows, not whole documents. Irrelevant text lowers accuracy, and the window is often half the win. The same goes for images: crop to the region. In one study, a nonsense sentence scored 0.90 on a paragraph crop but only 0.60 on the whole page.
+- **Window first.** Send located passages or context windows, not whole documents. Irrelevant text lowers accuracy, and the window is often half the win. The same goes for images: crop to the region, and TypeSafe's own Box guidance says the same (tile first for small targets, re-ask on a tighter crop when unsure). In one study, a nonsense sentence scored 0.90 on a paragraph crop but only 0.60 on the whole page.
 - **Code first for anything checkable.** Quotes, counts, dates, arithmetic, pincites and exact lookups belong in code, and that code runs before Jev. Jev will happily call a fabricated quote "supported", and it has nothing to judge when the text is missing.
 - **Trust the extremes, not the middle.** Use Jev to clear or escalate, or to filter or screen. The 0.3 to 0.7 band is where the hard cases live; route that band to an LLM or a person rather than ranking on it.
 - **Fit thresholds on your own labels, out of sample, and refit when the data shifts.** In-sample thresholds mislead, thresholds don't carry over between datasets, and a gate tuned at one prevalence can miss badly at another. Pin the model version once thresholds are tuned. For a gate, read the probability of the level you care about, not the Score's expectation.
-- **Request shape changes answers.** Answers vary a little from run to run, and putting several items in one state or changing the question set can move them more. Keep one item per state, version your question sets, and repeat or cache any answer that sits near a threshold.
+- **Request shape changes answers.** Answers vary a little from run to run, and putting several items in one state or changing the question set can move them more (packing similar items into one array took one test from 96% to 72%). Keep one item per state, version your question sets, and repeat or cache any answer that sits near a threshold.
 - **Make options mutually exclusive, and spell out the boundaries.** A Choice assumes exactly one answer. If "both" is possible, ask separate yes/no Nouls instead. Jev reads literally, so put the edge cases in the criteria.
 
 ## Worth testing
@@ -27,8 +27,8 @@ Hunches with thin or mixed evidence. Suggest them as a **Cheapest test**; don't 
 - **Neutral questions may beat questions that include your situation.** Asking the general question ("does this case hold X?") separated far better than asking whether it fit the user's facts.
 - **Relative judgments may beat absolute ones over passages.** "Which passage decides X?" (a Choice) worked, while "is this passage substantive?" (a Noul per passage) was at chance. That's confounded, though: the failing question was also vague.
 - **Calibration may lean by type.** In one set of tests, Choice and Score ran overconfident and Noul ran underconfident on unseen data. Others have independently found Choice probabilities poorly calibrated: they don't match stated odds and barely track how split human annotators were. Don't treat a Choice probability as a frequency.
-- **Loaded words may tilt the answer.** Naming the thing you're hunting for in the question ("is this AI-generated?", "any hallucinations?") pushed real photos toward yes (7 of 8 flagged), until a neutral confirm question was added. Test a neutrally worded version too.
-- **On images, Jev may read meaning, not exact layout.** It "mentally fixed" misaligned tables (0.89 to 0.96 on misaligned vs. 0.92 to 0.98 on clean, with no separation), and Box drawn as-is was the weakest way to locate. Do exact geometry (alignment, measurement, counting pixels) in code or classical vision.
+- **Loaded words may tilt the answer.** Naming the thing you're hunting for in the question ("is this AI-generated?", "any hallucinations?") pushed real photos toward yes (7 of 8 flagged), until a neutral confirm question was added. A text report points the same way: asking about "limited liability" flagged ordinary refund clauses, and narrowing the wording to damages, losses or harm halved the false alarms. Test a neutrally worded version too.
+- **On images, Jev may read meaning, not exact layout.** It "mentally fixed" misaligned tables (0.89 to 0.96 on misaligned vs. 0.92 to 0.98 on clean, with no separation), and it couldn't tell look-alike stock photos apart. In TypeSafe's own test, judging a box from its outline on the full image caught the fewest cut-offs (20 of 36, vs. 30 for one Noul per edge on a crop). Do exact geometry (alignment, measurement, counting pixels) in code or classical vision.
 - **Questions can be one dimension in disguise.** Several questions that looked independent all scored alike, and weighting them never beat a simple count. Check the correlations before building a weighted composite.
 
 ## Patterns
@@ -55,6 +55,7 @@ DOCUMENTED (about 10x cheaper than sequential). TESTED.
 TESTED (citation checking: about a quarter cleared and a tenth flagged with no bad calls; the rest went to the LLM). COMMUNITY:
 - Conformal thresholds (jev-certify) auto-routed about 85% of queries with about 2% loss.
 - Entity resolution with an LLM on the uncertain residue matched 199 of 200 at a tiny fraction of frontier-LLM cost ([Southbridge](https://southbridge.ai/blog/jev-entity-resolution)).
+- Incident diagnosis ([SREGym](https://sregym.com)): 80 of 105 passed (76% vs. 78% for an LLM agent), about 7x faster, $0.15 in total.
 
 Breaks: using one threshold; trusting in-sample thresholds.
 
@@ -92,7 +93,7 @@ UNTRIED as a re-sort. COMMUNITY: weights fit over 12 to 14 Scores beat a single 
 ## D. Using the probabilities themselves
 
 **10. Uncertainty spotlight.** Spend human reading where Jev is *least* sure. The 0.3 to 0.7 band is where the interesting, contested, or badly worded items live.
-TESTED implicitly (the partial-support cases clustered in the middle). COMMUNITY variant: ask the user a clarifying question when the top two options are close. Warning: Choice probabilities are poorly calibrated on contested items, so rank by closeness or spread, not by the raw value.
+TESTED implicitly (the partial-support cases clustered in the middle). COMMUNITY variant: ask the user a clarifying question when the top two options are close. COMMUNITY, on images ([jev-vision-benchmarks](https://github.com/MaceTenth/jev-vision-benchmarks)): five yes/no policy questions per catalog photo; sending the 0.3 to 0.7 band to a person put 4 of 294 answers (1.4%) in review, including both errors, and the other 290 were all right. It caught 7 of 8 problems with 1 false alarm, at about 0.4 s and $123 per million photos (60 photos, Claude-written labels, 8 positives). Warning: Choice probabilities are poorly calibrated on contested items, so rank by closeness or spread, not by the raw value.
 
 **11. Disagreement mining.** Ask a broad and a narrow version of a question, or compare Jev with an LLM or a human. The items where they diverge are the ones to read.
 TESTED (the broad-vs-narrow gap kept every must-have document; some "false alarms" were Jev right and the LLM wrong).
@@ -106,7 +107,7 @@ UNTRIED.
 ## E. Making it point
 
 **14. Locator.** One Choice over numbered passages ("which passage decides X?") finds where something is. Jev can't search by itself, but it can point at an option you number.
-TESTED (the right passage was usually in the top 3). DOCUMENTED (line-ID search).
+TESTED (the right passage was usually in the top 3). DOCUMENTED (line-ID search). COMMUNITY: routing callers' questions to the right website page ([Sayora](https://sayora.ai)) got the right page first 88% of the time vs. 70% for embeddings, and correctly said "none of these" 95% of the time vs. 23%, for $0.45 over 1,449 requests. That's the case for always offering `none`.
 
 **15. Paragraph heat map.** Ask the same Noul of every paragraph to get a probability curve through the document, showing where an issue is decided and where it's only mentioned. Use it for windowing, for reading UIs, and to jump straight to the key passage.
 COMMUNITY: jev-skip paints a sponsor-segment probability on the YouTube seek bar (caught about 77% of sponsor seconds, under $0.001 a video). Per-line "grep by meaning" tools do the same over code. For images, fan the same Noul out over tiles or crops to get a heat map of the picture (see #32). Warning: a vague per-passage question ("is this substantive?") was at chance. Prefer a relative judgment (a Choice over passages) or very concrete Nouls.
@@ -120,7 +121,7 @@ DOCUMENTED. COMMUNITY variant: for spans, code nominates candidates, Jev verifie
 ## F. Two texts at once (state as an array)
 
 **18. Pairwise judgments.** "Same issue?" "Does B apply A's rule?" "Does this passage support this claim?" "Did this edit change the meaning?" These power deduplication, clustering, treatment checks, version diffs, and matching a question to candidate sources.
-TESTED (claim plus passage). DOCUMENTED (reranking a BM25 shortlist on legal queries: top-10 from 38% to 62%). Generic record dedupe has been reported as underwhelming, but funnelled entity resolution worked well (see #3). With images (experimental), the pair can be two pictures or a picture plus a claim, for example "is this upload the product in the catalog photo?" or "is the product in this returned-item photo damaged, as the claim says?". COMMUNITY (demo): a reference photo plus video frames, with a Noul for "visible" and then a Box ([video-image-tagger](https://github.com/botheaj/video-image-tagger)).
+TESTED (claim plus passage). DOCUMENTED (reranking a BM25 shortlist on legal queries: top-10 from 38% to 62%). Generic record dedupe has been reported as underwhelming, but funnelled entity resolution worked well (see #3). With images (experimental), the pair can be two pictures or a picture plus a claim, for example "is this upload the product in the catalog photo?" or "is the product in this returned-item photo damaged, as the claim says?". COMMUNITY (demo): a reference photo plus video frames, with a Noul for "visible" and then a Box ([video-image-tagger](https://github.com/botheaj/video-image-tagger)). COMMUNITY (numbers): "does this featured image fit this headline?" separated own vs. random headlines at AUC 0.91 over 30 images, and rejected all 60 off-topic pairings (Thorsten Meyer, read via a republished copy); look-alike stock photos were the misses.
 
 **19. Tournament ranking.** Many cheap pairwise "which is more on point?" judgments add up to a ranking, which sidesteps poor absolute calibration.
 UNTRIED. Watch Choice order bias; ask both orders.
@@ -171,7 +172,8 @@ COMMUNITY (demo): [jevwright](https://github.com/Ice-Hazymoon/jevwright).
 
 ## K. Images (experimental)
 
-**32. Locate, crop, confirm.** A Box (or a grid Choice) proposes *where*. Code crops that region, upscaled if it's small, and Jev re-asks a narrow, neutrally worded Noul on the crop. Gate on the confirm, not the first pass. Because Box always returns a box, ask an "is there a ...?" Noul first.
+**32. Locate, crop, confirm.** A Box (or a grid Choice) proposes *where*. Code crops that region, upscaled if it's small, and Jev re-asks a narrow, neutrally worded Noul on the crop. Gate on the confirm, not the first pass. Because Box always returns a box (even for an absent target, at low confidence), ask an "is there a ...?" Noul in the same request.
+DOCUMENTED: TypeSafe's Box page gives the same recipe: a Choice over tiles before Box for small targets, a presence Noul alongside, and one Noul per edge on the crop to check the box (30 of 36 cut-offs caught vs. 20 from the outline on the full image).
 COMMUNITY: [jev-box-study](https://github.com/RINNECODER/jev-box-study) flags errors in AI-generated images.
 - Caught 97 to 98% of planted text errors (misspellings, wrong percentages, contradictions).
 - Its confirm step cut false flags on real photos from 4 of 26 to 0 of 26.
@@ -181,7 +183,7 @@ Breaks:
 - Box returned zero-width boxes, repeated the same region after masking, and gave one giant box for "find anything".
 - Table misalignments were missed.
 - Run-to-run spread on the same crop was 0.57 to 0.67.
-- Crops under the minimum image size (about 256 to 280 px a side) were rejected.
+- Crops under the minimum image size were rejected (officially 256 px a side and 78,400 pixels in total, so about 280 px for a square).
 
 ## Not a Jev job
 
