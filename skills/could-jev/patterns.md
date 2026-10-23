@@ -13,20 +13,21 @@ Every pattern below is some combination of those. "Classify X" is the least inte
 
 These held up repeatedly in practice and agree with TypeSafe's own guidance or with independent reports.
 
-- **Window first.** Send located passages or context windows, not whole documents. Irrelevant text lowers accuracy, and the window is often half the win. The same goes for images: crop to the region, and TypeSafe's own Box guidance says the same (tile first for small targets, re-ask on a tighter crop when unsure). In one study, a nonsense sentence scored 0.90 on a paragraph crop but only 0.60 on the whole page.
-- **Code first for anything checkable.** Quotes, counts, dates, arithmetic, pincites and exact lookups belong in code, and that code runs before Jev. Jev will happily call a fabricated quote "supported", and it has nothing to judge when the text is missing.
+- **Window first.** Send located passages or context windows, not whole documents. Irrelevant text lowers accuracy, and the window is often half the win. The same goes for images: crop to the region, and TypeSafe's own Box guidance says the same (tile first for small targets, re-ask on a tighter crop when unsure). In one study, a nonsense sentence scored 0.90 on a paragraph crop but only 0.60 on the whole page. What hurts is *irrelevant or misleading* text, not length as such: at [GC AI][gcai], a relevant 12k-token document matched focused excerpts, and full-contract context fixed a two-hop cross-reference miss. Alert template text ("the request errored for the user") caused false pages, though, so strip boilerplate. Jev believes what it reads.
+- **Code first for anything checkable.** Quotes, counts, dates, arithmetic, pincites and exact lookups belong in code, and that code runs before Jev. Jev will happily call a fabricated quote "supported", and it has nothing to judge when the text is missing. Then put the facts code computed *into the state*: at [GC AI][gcai], adding the observed CPU value took a pager's precision from 0.63 to 0.92, and giving Jev a computed landing point took a Breakout player from 17 to 29 bricks a minute.
+- **Ask narrow, factual questions, not holistic ones.** Broad value judgments are close to coin flips: "is this test useless?" scored AUC 0.54, and vague per-passage or "is anything missing?" questions failed the same way (#15, #20). Splitting the judgment into concrete yes/nos mined from real examples, then combining them in code, took the test flagger to 0.72. One overall "is it supported?" missed "may" turned into "must", and three narrow yes/nos (explicit support, mismatched details, overstatement) caught it. The exception is a clean single category: for document status, one Choice with a described option per status beat the same thing split into yes/nos (88% vs. 82%). Hand-write the questions; AI-generated question lists gave no signal.
 - **Trust the extremes, not the middle.** Use Jev to clear or escalate, or to filter or screen. The 0.3 to 0.7 band is where the hard cases live; route that band to an LLM or a person rather than ranking on it.
-- **Fit thresholds on your own labels, out of sample, and refit when the data shifts.** In-sample thresholds mislead, thresholds don't carry over between datasets, and a gate tuned at one prevalence can miss badly at another. Pin the model version once thresholds are tuned. For a gate, read the probability of the level you care about, not the Score's expectation.
-- **Request shape changes answers.** Answers vary a little from run to run, and putting several items in one state or changing the question set can move them more (packing similar items into one array took one test from 96% to 72%). Keep one item per state, version your question sets, and repeat or cache any answer that sits near a threshold.
-- **Make options mutually exclusive, and spell out the boundaries.** A Choice assumes exactly one answer. If "both" is possible, ask separate yes/no Nouls instead. Jev reads literally, so put the edge cases in the criteria.
+- **Fit thresholds on your own labels, out of sample, and refit when the data shifts.** In-sample thresholds mislead, thresholds don't carry over between datasets, and a gate tuned at one prevalence can miss badly at another. Pin the model version once thresholds are tuned. For a gate, read the probability of the level you care about, not the Score's expectation. Across GC AI's projects, tuned cutoffs ran anywhere from 0.25 to 0.95, so don't assume 0.8; per-pattern thresholds beat one global one; and asymmetric bands help when one error costs more (#3).
+- **Request shape changes answers.** Answers vary a little from run to run, and putting several items in one state or changing the question set can move them more. At [GC AI][gcai], primes were 72% right packed into an array, 88% as keyed fields, and 96% one per request; SMS spam went from 62% batched to 100%; `citations[4]` gave a wrong answer where `cite_4` was right; and pick-from-list questions over sentences fell from 83% at 5 per call to 60% at 40. Many *questions* about one item are nearly free (1 to 150 questions took 0.33 to 0.76 s). So fan out one item per request, or key items by name if they must share a call; version (or hash) your question sets; and repeat or cache any answer that sits near a threshold.
+- **Make options mutually exclusive, and spell out the boundaries.** A Choice assumes exactly one answer. If "both" is possible, ask separate yes/no Nouls instead. Jev reads literally, so put the edge cases in the criteria. Near-synonym labels break it (Severability vs. Enforceability, confidently wrong at 1.00), and spelling out the rule took one CUAD task from 65% to 90%. Give every option a description: undescribed options caused a skill router's misses. Guidance written for people needs rewriting as literal conditions (a playbook's checks scored 41 of 80 as written). A question and its negation don't sum to 1, so ask each decision one way.
 
 ## Worth testing
 
 Hunches with thin or mixed evidence. Suggest them as a **Cheapest test**; don't state them as fact.
 
 - **Neutral questions may beat questions that include your situation.** Asking the general question ("does this case hold X?") separated far better than asking whether it fit the user's facts.
-- **Relative judgments may beat absolute ones over passages.** "Which passage decides X?" (a Choice) worked, while "is this passage substantive?" (a Noul per passage) was at chance. That's confounded, though: the failing question was also vague.
-- **Calibration may lean by type.** In one set of tests, Choice and Score ran overconfident and Noul ran underconfident on unseen data. Others have independently found Choice probabilities poorly calibrated: they don't match stated odds and barely track how split human annotators were. Don't treat a Choice probability as a frequency.
+- **Relative judgments may beat absolute ones over passages.** "Which passage decides X?" (a Choice) worked, while "is this passage substantive?" (a Noul per passage) was at chance. That's confounded, though: the failing question was also vague. GC AI saw the same lean: absolute Scores bunched in the middle while relative ranking worked, and a sentence-level one-sidedness Score agreed with labels only 47 to 63% of the time and ran half a level harsh.
+- **Calibration may lean by type.** In one set of tests, Choice and Score ran overconfident and Noul ran underconfident on unseen data. Others have independently found Choice probabilities poorly calibrated: they don't match stated odds and barely track how split human annotators were. Don't treat a Choice probability as a frequency. For *routing*, though, the probabilities have held up: in one GC AI test, every wrong answer from gpt-5-mini came at 0.85 confidence or higher, so its self-reported confidence couldn't route, while Jev's could.
 - **Loaded words may tilt the answer.** Naming the thing you're hunting for in the question ("is this AI-generated?", "any hallucinations?") pushed real photos toward yes (7 of 8 flagged), until a neutral confirm question was added. A text report points the same way: asking about "limited liability" flagged ordinary refund clauses, and narrowing the wording to damages, losses or harm halved the false alarms. Test a neutrally worded version too.
 - **On images, Jev may read meaning, not exact layout.** It "mentally fixed" misaligned tables (0.89 to 0.96 on misaligned vs. 0.92 to 0.98 on clean, with no separation), and it couldn't tell look-alike stock photos apart. In TypeSafe's own test, judging a box from its outline on the full image caught the fewest cut-offs (20 of 36, vs. 30 for one Noul per edge on a crop). Do exact geometry (alignment, measurement, counting pixels) in code or classical vision.
 - **Questions can be one dimension in disguise.** Several questions that looked independent all scored alike, and weighting them never beat a simple count. Check the correlations before building a weighted composite.
@@ -47,7 +48,7 @@ When the user's own history has a matching experiment, cite that.
 TESTED (content previews, citing-case profiles). Breaks: questions that need inference across the whole document.
 
 **2. Fan-out first, decide later.** Ask every question you *might* need in one request and let code decide which answers matter. Speculation is free, so the design question becomes "what would I want to know?", not "what can I afford to ask?".
-DOCUMENTED (about 10x cheaper than sequential). TESTED.
+DOCUMENTED (about 10x cheaper than sequential). TESTED. COMMUNITY: going from 1 to 150 questions on one item only took a request from 0.33 s to 0.76 s ([GC AI][gcai]).
 
 ## B. Cutting a big set down
 
@@ -56,11 +57,17 @@ TESTED (citation checking: about a quarter cleared and a tenth flagged with no b
 - Conformal thresholds (jev-certify) auto-routed about 85% of queries with about 2% loss.
 - Entity resolution with an LLM on the uncertain residue matched 199 of 200 at a tiny fraction of frontier-LLM cost ([Southbridge](https://southbridge.ai/blog/jev-entity-resolution)).
 - Incident diagnosis ([SREGym](https://sregym.com)): 80 of 105 passed (76% vs. 78% for an LLM agent), about 7x faster, $0.15 in total.
+- [GC AI][gcai]'s hack day ran it six times, and every head-to-head with a stronger-model fallback matched the stronger model at a fraction of the cost:
+  - Relationship detection: Jev alone 84.6%, Gemini Flash 91.9%, Jev with bands also 91.9%, with Jev handling 86% of pairs and 43% lower cost. False yeses were the weakness, so the bands were asymmetric (no below 0.40, yes above 0.70).
+  - Party matching: Jev 90%, the existing LLM 93%, Jev plus fallback 95%, at $0.019 vs. $0.51 per 1,000.
+  - LegalBench, CUAD and LEDGAR: 79% overall but 92% at confidence 0.8 or higher, which covered 72% of items.
+- Screen variant, for rare positives: Jev drops most traffic with a *low* bar and an LLM confirms and extracts the rest. A preference-memory feature sent only 1 in 13 messages to Sonnet, at 11.5x lower cost (92% precision, 71% recall). Jev alone found only 1 of 11 real preferences, so it's a screen, not the judge.
+- Noisy-alarm variant: Jev clears a noisy CI security check (only 8 of 30 sampled alarms were real) by passing a change only if every file scores under 0.25, and sends the rest to a reviewer.
 
 Breaks: using one threshold; trusting in-sample thresholds.
 
 **4. Census instead of sample.** When the universe can be listed (every court opinion matching a broad query, every ticket this quarter), score *all* of it on one coarse question and audit a random sample to measure the miss rate. That turns "we searched carefully" into "we checked every document; measured miss rate is X%".
-UNTRIED as a census with a miss-rate audit. Whole-corpus screens are TESTED and COMMUNITY: about 1,200 pages judged in under 3 minutes; 1,500 posts per channel profiled month by month. Breaks: the universe is only as complete as the query that listed it.
+UNTRIED as a census with a miss-rate audit. Whole-corpus screens are TESTED and COMMUNITY: about 1,200 pages judged in under 3 minutes; 1,500 posts per channel profiled month by month; document type and status over a 25k-document corpus at about 119 documents a second and $0.0001 each (type 87% vs. Opus 93%, right type in the top 2 99%; [GC AI][gcai]). Breaks: the universe is only as complete as the query that listed it.
 
 **5. Treatment screen.** Run one question over every citing or referencing document's context window: does it follow, distinguish, limit, or overrule (or, outside law, endorse, dispute, or supersede)?
 TESTED (high recall on "no longer good law"). Breaks: treatment you have to infer.
@@ -93,13 +100,13 @@ UNTRIED as a re-sort. COMMUNITY: weights fit over 12 to 14 Scores beat a single 
 ## D. Using the probabilities themselves
 
 **10. Uncertainty spotlight.** Spend human reading where Jev is *least* sure. The 0.3 to 0.7 band is where the interesting, contested, or badly worded items live.
-TESTED implicitly (the partial-support cases clustered in the middle). COMMUNITY variant: ask the user a clarifying question when the top two options are close. COMMUNITY, on images ([jev-vision-benchmarks](https://github.com/MaceTenth/jev-vision-benchmarks)): five yes/no policy questions per catalog photo; sending the 0.3 to 0.7 band to a person put 4 of 294 answers (1.4%) in review, including both errors, and the other 290 were all right. It caught 7 of 8 problems with 1 false alarm, at about 0.4 s and $123 per million photos (60 photos, Claude-written labels, 8 positives). Warning: Choice probabilities are poorly calibrated on contested items, so rank by closeness or spread, not by the raw value.
+TESTED implicitly (the partial-support cases clustered in the middle). COMMUNITY variant: ask the user a clarifying question when the top two options are close. COMMUNITY, as a review queue: an agent-plan verifier kept Jev's answers at 0.8 or above and sent the rest to a person, matching gpt-5-mini's 92% ([GC AI][gcai]). COMMUNITY, on images ([jev-vision-benchmarks](https://github.com/MaceTenth/jev-vision-benchmarks)): five yes/no policy questions per catalog photo; sending the 0.3 to 0.7 band to a person put 4 of 294 answers (1.4%) in review, including both errors, and the other 290 were all right. It caught 7 of 8 problems with 1 false alarm, at about 0.4 s and $123 per million photos (60 photos, Claude-written labels, 8 positives). Warning: Choice probabilities are poorly calibrated on contested items, so rank by closeness or spread, not by the raw value.
 
 **11. Disagreement mining.** Ask a broad and a narrow version of a question, or compare Jev with an LLM or a human. The items where they diverge are the ones to read.
 TESTED (the broad-vs-narrow gap kept every must-have document; some "false alarms" were Jev right and the LLM wrong).
 
 **12. Question-wording search.** Because asking is free, *search over phrasings* against a labeled set and keep the wording that separates best. It's prompt engineering with a measurable objective.
-TESTED. Breaks: overfitting to the held-out set; bump the rubric version.
+TESTED. COMMUNITY: adding few-shot examples to the criteria cut a comment remover's false deletions from 6 to 0, and calling them "sentences" instead of "units" was worth 5 points ([GC AI][gcai]). Breaks: overfitting to the held-out set; bump the rubric version.
 
 **13. Gold-set hygiene.** Run Jev over your gold labels. Where it confidently disagrees, re-check the label first.
 UNTRIED.
@@ -110,18 +117,18 @@ UNTRIED.
 TESTED (the right passage was usually in the top 3). DOCUMENTED (line-ID search). COMMUNITY: routing callers' questions to the right website page ([Sayora](https://sayora.ai)) got the right page first 88% of the time vs. 70% for embeddings, and correctly said "none of these" 95% of the time vs. 23%, for $0.45 over 1,449 requests. That's the case for always offering `none`.
 
 **15. Paragraph heat map.** Ask the same Noul of every paragraph to get a probability curve through the document, showing where an issue is decided and where it's only mentioned. Use it for windowing, for reading UIs, and to jump straight to the key passage.
-COMMUNITY: jev-skip paints a sponsor-segment probability on the YouTube seek bar (caught about 77% of sponsor seconds, under $0.001 a video). Per-line "grep by meaning" tools do the same over code. For images, fan the same Noul out over tiles or crops to get a heat map of the picture (see #32). Warning: a vague per-passage question ("is this substantive?") was at chance. Prefer a relative judgment (a Choice over passages) or very concrete Nouls.
+COMMUNITY: jev-skip paints a sponsor-segment probability on the YouTube seek bar (caught about 77% of sponsor seconds, under $0.001 a video). Per-line "grep by meaning" tools do the same over code. For images, fan the same Noul out over tiles or crops to get a heat map of the picture (see #32). COMMUNITY, contracts ([GC AI][gcai]): a risk simulator scored every sentence with the full contract and the reader's side as context; 8 of its top 10 were planted risks, including a buried cross-reference that swallowed the liability cap (91 sentences, about 1 s, $0.018). A one-sidedness heat map that used absolute 5-level Scores did worse (47 to 63% level agreement). Warning: a vague per-passage question ("is this substantive?") was at chance. Prefer a relative judgment (a Choice over passages) or very concrete Nouls.
 
 **16. Remove-a-sentence attribution.** Delete one sentence at a time, re-ask, and watch the probability move. The sentences that move it most are what drove the judgment. Cheap explainability for a model that can't explain itself.
 UNTRIED.
 
 **17. Pre-parsed extraction.** Code finds candidate values (dates, ID numbers, names, statutes cited); Jev picks which one is *the* answer; code copies it verbatim. It can't hallucinate a value.
-DOCUMENTED. COMMUNITY variant: for spans, code nominates candidates, Jev verifies each one, and code fixes the boundaries (named-entity recognition at about 74 strict F1 averaged over 12 benchmarks).
+DOCUMENTED. COMMUNITY ([GC AI][gcai]): 9 of 9 fields in one 0.34 s call, and 14 of 14 extractions on a 12k-token terms of service; an inbox triager had code find date phrases and Jev pick the deadline. Always add `none` *and* a separate "is it present?" Noul: with no escape option Jev picked a wrong date at 0.92, and adding `none_of_these` made it right at 1.00. Merge duplicate candidates first. COMMUNITY variant: for spans, code nominates candidates, Jev verifies each one, and code fixes the boundaries (named-entity recognition at about 74 strict F1 averaged over 12 benchmarks).
 
 ## F. Two texts at once (state as an array)
 
 **18. Pairwise judgments.** "Same issue?" "Does B apply A's rule?" "Does this passage support this claim?" "Did this edit change the meaning?" These power deduplication, clustering, treatment checks, version diffs, and matching a question to candidate sources.
-TESTED (claim plus passage). DOCUMENTED (reranking a BM25 shortlist on legal queries: top-10 from 38% to 62%). Generic record dedupe has been reported as underwhelming, but funnelled entity resolution worked well (see #3). With images (experimental), the pair can be two pictures or a picture plus a claim, for example "is this upload the product in the catalog photo?" or "is the product in this returned-item photo damaged, as the claim says?". COMMUNITY (demo): a reference photo plus video frames, with a Noul for "visible" and then a Box ([video-image-tagger](https://github.com/botheaj/video-image-tagger)). COMMUNITY (numbers): "does this featured image fit this headline?" separated own vs. random headlines at AUC 0.91 over 30 images, and rejected all 60 off-topic pairings (Thorsten Meyer, read via a republished copy); look-alike stock photos were the misses.
+TESTED (claim plus passage). DOCUMENTED (reranking a BM25 shortlist on legal queries: top-10 from 38% to 62%). Generic record dedupe has been reported as underwhelming, but funnelled entity resolution worked well (see #3), and so did narrow matching questions: a returning-buyer checker asked two Nouls (same person? same organization?) with clerical equivalences in the criteria and agreed with Opus 5 95.5% of the time at $0.00011 vs. $0.0073 per probe ([GC AI][gcai]). Claim vs. source at GC AI: a citation verifier (supports / contradicts / silent) hid 0 of 151 good held-out citations and 57 of 84 bad ones, at a p90 of 366 ms per message. Repetition detection: comparing the current prompt with 20 earlier chats ("same kind of task? ignore parties, amounts, dates"), with code counting the matches, hit 0.92 precision and 0.92 recall. With images (experimental), the pair can be two pictures or a picture plus a claim, for example "is this upload the product in the catalog photo?" or "is the product in this returned-item photo damaged, as the claim says?". COMMUNITY (demo): a reference photo plus video frames, with a Noul for "visible" and then a Box ([video-image-tagger](https://github.com/botheaj/video-image-tagger)). COMMUNITY (numbers): "does this featured image fit this headline?" separated own vs. random headlines at AUC 0.91 over 30 images, and rejected all 60 off-topic pairings (Thorsten Meyer, read via a republished copy); look-alike stock photos were the misses.
 
 **19. Tournament ranking.** Many cheap pairwise "which is more on point?" judgments add up to a ranking, which sidesteps poor absolute calibration.
 UNTRIED. Watch Choice order bias; ask both orders.
@@ -129,10 +136,14 @@ UNTRIED. Watch Choice order bias; ask both orders.
 ## G. Watching processes
 
 **20. LLM-output check.** A cheap screen on a draft before anything expensive runs: does this sentence's citation support it; is this summary faithful to that passage?
-TESTED. COMMUNITY: Jev assertions inside test suites (pytest-jev). Breaks: vague "is anything missing?" questions, which score high on everything.
+TESTED. COMMUNITY: Jev assertions inside test suites (pytest-jev). COMMUNITY ([GC AI][gcai]):
+- *While streaming:* check each cited claim against all its sources as it closes, and underline it before the next paragraph arrives (no false "high" in a 32-case test, 200 to 470 ms per call). Re-check weak claims, and cap the wait after the stream ends.
+- *As an eval judge:* one Noul per rubric criterion agreed 94% with a unanimous LLM panel at about 1% of the cost. It was good on objective criteria (legal accuracy 98.7% vs. 87.4%), weak on holistic ones ("sound advice" 83%) and on criteria about files or tool output (59% vs. 96%).
+
+Breaks: vague "is anything missing?" questions, which score high on everything.
 
 **21. Agent tripwires.** Inside a long agent run: is this step still on the task? Is this draft answering what was asked? Is this work actually done? The answer becomes a gate in a hook.
-COMMUNITY: a tool-permission gate tested on about 7,900 labelled calls made 1 unsafe allow among 3,664 risky ones and settled 62% of real work at about 160 ms ([jev-permission-gate](https://github.com/madisonrickert/jev-permission-gate)). Others: wake-or-sleep gates for idle agents, and skill routers. Breaks: injected text didn't push dangerous calls through, but it caused about 10% false denials, and "authority" framing moved a few.
+COMMUNITY: a tool-permission gate tested on about 7,900 labelled calls made 1 unsafe allow among 3,664 risky ones and settled 62% of real work at about 160 ms ([jev-permission-gate](https://github.com/madisonrickert/jev-permission-gate)). Others: wake-or-sleep gates for idle agents, and skill routers. COMMUNITY ([GC AI][gcai]): an exfiltration guard on every tool call stopped all 11 exfiltration calls at about 200 ms each, flagging at 0.4 because attacks scored 0.39 to 0.49. Splitting the state into the user's request, pasted text and tool results cut executed attacks from 6 to 0. Breaks: injected text didn't push dangerous calls through, but it caused about 10% false denials, and "authority" framing moved a few. An anti-injection line inside the question didn't hold against a planted comment, while a separate "is this an injection?" Noul caught one at 0.98, so let that Noul win. Decide fail-open vs. fail-to-approval up front.
 
 **22. Novelty and saturation detector.** "Does this new item add something not already in the set?" Plot the number of new items per round and stop when the curve flattens.
 COMMUNITY, as a stopping rule for search: asking "is there enough context to answer?" matched an LLM's recall at about a quarter of the latency (AUROC about 0.90 vs. 0.69 for small local models).
@@ -140,7 +151,12 @@ COMMUNITY, as a stopping rule for search: asking "is there enough context to ans
 ## H. Speed-dependent
 
 **23. Live feedback.** At 0.1 to 0.4 s, Jev can run as you type or click. For example: flag a sentence that states a conclusion without a source; badge each item in a reader with its attributes; check a student's answer against a rubric before they submit.
-UNTRIED.
+COMMUNITY ([GC AI][gcai]):
+- A skill picker suggested the right skill as the user typed (debounced 600 ms; 21 of 21 vs. 20 of 21 for gpt-5-mini, 221 ms vs. 1,896 ms; over 102 real skills the button was right 96% of the time with 0 wrong pills).
+- A browser extension ran eight trap Nouls per paragraph of any terms page (Spotify's 110 paragraphs in 1.9 s; held-out F1 89% vs. 57% for regex; 19 of 20 red highlights right on 11 real sites). Every early data-sharing hit was the cookie banner, so check what the scraper actually sends.
+- Citation checks as the answer streams (#20).
+
+Debounce, cache verdicts so badges don't flicker, and judge only new items.
 
 **24. Query to filters.** Break a plain-language question into attribute constraints (jurisdiction, date range, category, fact branch), then filter the collection before retrieval.
 UNTRIED.
@@ -156,13 +172,13 @@ TESTED.
 ## J. New shapes from the community
 
 **27. Generate-and-test recognizer.** A brute-force or search process produces candidates, and Jev judges which output is "real" (plausible, valid, on-target). Jev is a strong *recognizer* even where it's a weak *policy*: let code explore and Jev recognize.
-COMMUNITY: [enigma-jev](https://github.com/agodoy21/enigma-jev) judges whether each candidate decryption is real German (159 of 160, and it held up under distribution shift where XGBoost collapsed). Breaks: using Jev to *choose the next move* in the search had no skill there, and a compiler-optimization policy lost to the baseline.
+COMMUNITY: [enigma-jev](https://github.com/agodoy21/enigma-jev) judges whether each candidate decryption is real German (159 of 160, and it held up under distribution shift where XGBoost collapsed). COMMUNITY variant, LLM proposes and Jev checks ([GC AI][gcai]): a de-identification loop had an LLM invent replacement names and Jev reject any that echoed the original, retrying up to 3 times. Jev caught 16 of 20 semantic echoes (code 0, Sonnet 19) at 34x Sonnet's speed, but missed world-knowledge echoes such as Nike → "Victoria Sportswear". Code owns the state, the counts and the stop condition. Breaks: using Jev to *choose the next move* in the search had no skill there, and a compiler-optimization policy lost to the baseline.
 
 **28. Distill-and-defer.** Jev labels live traffic. A small local model trains on those labels and answers when its confidence bound allows; otherwise it defers to Jev. Over time, most traffic never leaves the machine.
 COMMUNITY: [Jevstiller](https://jevstiller.pages.dev/posts/the-guarantee/) answered 25 to 90% of requests locally at about 15 ms, with 1 to 1.5% disagreement under a 2% budget, across four intent and topic datasets. A good fit when the task is fixed and traffic is high, because specialists can beat Jev there.
 
 **29. Legal-move picker.** Code enumerates the legal actions (page controls, state-machine transitions, game moves), and one Choice per step picks one. It's fast enough to drive a UI or agent loop in real time.
-COMMUNITY: [jev-ultrafast](https://github.com/browser-use/jev-ultrafast) completed a flight search in about 7 s; [jevspresso](https://github.com/statelyai/jevspresso) picks transitions in a state machine. Small numbers so far. With images, the state can be a screenshot with numbered elements, and the Choice picks a number; coordinates come from the UI tree, not from Jev. [jev-phone](https://github.com/dongxinsuperman/jev-phone) took about 0.7 s per step (demo, no accuracy reported). Prefer the accessibility tree when there is one, and fall back to the screenshot. Breaks: long-horizon planning, which needs a real planner.
+COMMUNITY: [jev-ultrafast](https://github.com/browser-use/jev-ultrafast) completed a flight search in about 7 s; [jevspresso](https://github.com/statelyai/jevspresso) picks transitions in a state machine. Small numbers so far. With images, the state can be a screenshot with numbered elements, and the Choice picks a number; coordinates come from the UI tree, not from Jev. [jev-phone](https://github.com/dongxinsuperman/jev-phone) took about 0.7 s per step (demo, no accuracy reported). Prefer the accessibility tree when there is one, and fall back to the screenshot. COMMUNITY ([GC AI][gcai]): Jev picking the target and aggression in Breakout, with code doing the physics, cleared 39 bricks a minute vs. 24 for code alone. Picking moves from raw state managed 17, and 29 once code supplied the predicted landing point; slowing the game didn't help. Breaks: long-horizon planning, which needs a real planner.
 
 **30. Context gardener.** Inside a long agent session, ask one Noul per old tool result: "is this still needed word for word?" Move the dropped ones to a recoverable file instead of deleting them.
 COMMUNITY: [jev-compaction-plus](https://github.com/cth9191/jev-compaction-plus) compacted a 591k-token session in under 1 s vs. 35 s for built-in compaction, with equal recall on a 6-question quiz (one session). Breaks: pruning can drop something needed later, so keep it recoverable.
@@ -185,12 +201,40 @@ Breaks:
 - Run-to-run spread on the same crop was 0.57 to 0.67.
 - Crops under the minimum image size were rejected (officially 256 px a side and 78,400 pixels in total, so about 280 px for a square).
 
+## L. Routing and composition
+
+These four came out of GC AI's 38-project hack day ([write-up][gcai], [project matrix][gcai-matrix]). It ran on Jev 1.13, mostly on small synthetic sets, usually in one run, so treat the numbers as direction.
+
+**33. Typed switch statement.** Jev picks which case an input falls into, with `none` among the options, and deterministic code does everything after that: state changes, replies, routing. No text generation anywhere. This was GC AI's most successful shape overall. It differs from #29 in that the options are a fixed catalog (skills, agents, alert families, inbox buckets, card layouts), not moves enumerated per step.
+COMMUNITY ([GC AI][gcai]):
+- A drop-in replacement for an agent-routing classifier gave "identical results, much cheaper".
+- An alert pager sorted alerts into families (133 of 136 right).
+- A Slack pet picked feed, play or scold, plus a kindness Score, and Postgres and code did the rest.
+- With several typed answers feeding one action, put the logic in one readable policy file: an inbox triager asked 9 questions per email and bucketed 26 of 26 right (Sonnet 4.6: 25 of 26) at 7x the speed and 16x lower cost.
+
+Describe every option, and check that the top pick beats `none`. Breaks: options without descriptions; near-synonym options.
+
+**34. Classify first, then decide.** Ask what *kind* of thing the input is, put that answer (and what it means) into the state, then ask the real decision. It works when misleading surface text would sway one combined call.
+COMMUNITY ([GC AI][gcai]): jev-pager over a replayed week of 136 production alerts paged for all 11 real incidents with 1 false page (precision 0.92, recall 1.00), and turned one 49-alert day into a single page. Alarming template text had made it over-escalate until it asked for the alert family first. Related: a probe → decide → verify chain where any verifier "no" vetoes (51 of 51 on fictional document pairs, up to 7 calls per pair).
+
+**35. Send shape, not values.** When the decision depends on structure, strip the values and send only the shape (field names, types, layout). You get privacy for free, and you can cache the answer per shape.
+COMMUNITY ([GC AI][gcai]): Jev picked a card layout for each tool result from its field names alone. The right card went from 17% to 70% and the right title from 22% to 89%, and 2,236 lines of hand-built cards were deleted.
+
+**36. LLM writes the Jev question.** For a messy, open-ended request, an LLM turns it into one typed question with criteria, and Jev answers it fast. Always add a "basis" Noul ("is there real information here, or would any answer be a guess?"): with no context, Jev still picked a winner at 0.81 to 0.89.
+COMMUNITY ([GC AI][gcai]): a Slack bot that settles debates got 20 of 20 debates and flagged all 10 no-context cases (planner 2.9 s, Jev 0.2 s). Breaks: AI-generated question *lists* over unit tests gave no signal at all. Check generated questions on labeled items before trusting them.
+
 ## Not a Jev job
 
 - Prose, a rationale, or an audit trail: use an LLM.
 - Anything that needs retrieval or a tool loop mid-decision: use an LLM.
 - Multi-hop reasoning as the *final* word: use an LLM.
-- Arithmetic, dates, counts, pincites, quote matching, known rules: use code.
+- Arithmetic, dates, counts, pincites, quote matching, known rules: use code. (Weekday of a date was right 20% of the time; counts were off by one, while per-item Nouls summed in code were exact; rhymes were judged by spelling, not sound.)
+- World knowledge and trivia: use an LLM. Jev scored 57% on band trivia vs. 93% for Claude, and didn't know that Nike is the goddess of victory.
+- Security judgments: keep them as coded gates. A PR auto-approver's security question caught only 28 to 40% of security-path files.
+- Two-hop cross-references in a window: Jev picked the general 60 days over the applicable 120 at 0.86. Full-document context helped (see Window first).
 - Pixel-exact geometry in images (alignment, measurements, counts of small objects, precise boxes): use code or classical vision, or verify a Box before you act on it.
 - Confidential data in the state: don't. For screens or documents, one option is local OCR that sends only the needed text, never the image. Open-weight look-alikes exist but trail Jev, so they're unproven as a local substitute.
 - A fixed, high-volume task where you have plenty of labels: a small fine-tuned classifier or an embedding classifier may beat Jev on both accuracy and latency. Consider Jev for bootstrapping the labels (#28).
+
+[gcai]: https://gc.ai/blog/what-we-learned-building-38-projects-with-jev-in-12-hours
+[gcai-matrix]: https://gc.ai/assets/jev-hackday/jev-patterns.html

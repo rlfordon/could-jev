@@ -88,7 +88,7 @@ In text, it can only "point" at things your code enumerates as options: spans, l
 - Vercel `@ai-sdk/typesafe-ai` 3.0.19 has model IDs `jev-1.13.0`, `jev-1.14.0`, `jev-latest` and `jev-preview`, plus image file parts and `longContext`. It has no Box question. `TYPESAFE_AI_BASE_URL` points it at a proxy or a compatible server.
 - `system-one-adapter-python` serves the same API from an LLM, which is handy for A/B testing Jev against an LLM.
 
-**Data:** zero data retention is enterprise-only.
+**Data:** zero data retention is enterprise-only on TypeSafe direct. GC AI sends customer data only through the Vercel AI Gateway with `providerOptions: { gateway: { zeroDataRetention: true, only: ['typesafe-ai'] } }`, and uses a direct key only for public or synthetic data (their internal skill calls `experimental_evaluate` from AI SDK 7; not checked against the gateway docs).
 
 ```python
 from typesafe_sdk import TypeSafeClient, Choice, Score, Noul
@@ -147,7 +147,15 @@ Field reports, not on TypeSafe's list:
 
 - **Calibration taken on trust.** It runs overconfident out of distribution and on contested items, and one temperature doesn't fix both. Calibration also swings by domain: in Vals AI's 12-system comparison, Jev had the *worst* calibration on LegalBench (ECE 0.108) but the *best* on claim verification (0.011). Fit thresholds on your own labels.
 - **Legal benchmarks (Vals AI, 2026-10-06):** Jev ranked last of 12 on LegalBench class-balanced accuracy (0.730), and answered "Yes" to all 33 items of one contract-NLI subtask.
-- **Packing items together:** putting several similar items in one state array dropped accuracy from 96% to 72% in one hackathon report (gc.ai, which also saw weekday-of-a-date right only about 20% of the time). One item per state.
+- **Packing items together:** putting several similar items in one state array dropped accuracy from 96% to 72% in GC AI's hack day (88% with keyed fields like `item_4` instead of `items[4]`). One item per state, or key items by name. Pick-from-list questions over many sentences in one call also degraded (83% at 5, 60% at 40). Many questions about *one* item stayed nearly free.
+- **GC AI hack day (2026-09-29, published 2026-10-06; 38 projects on 1.13, small and mostly synthetic sets, usually one run):** [write-up](https://gc.ai/blog/what-we-learned-building-38-projects-with-jev-in-12-hours), [project matrix](https://gc.ai/assets/jev-hackday/jev-patterns.html).
+  - Strong: picking from a fixed list (21 of 21 skills; 133 of 136 alert families; 46 of 50 movie titles over 253 options), "does this text do X?" on concrete text, select-not-generate extraction, record matching, claim vs. source.
+  - Weak: holistic calls ("is this test useless?" AUC 0.54), absolute fine-grained Scores, recall on subtle patterns (a comment remover at precision 1.00 but recall 0.12), two-hop cross-references (wrong at 0.86), world knowledge (band trivia 57% vs. Claude 93%), near-synonym labels (wrong at 1.00), criteria about files or tool output (59% vs. 96% for LLM judges), and security judgments (28 to 40%).
+  - Long context: a needle sentence was still found inside 30k tokens of boilerplate, and a relevant 12k-token document did as well as focused excerpts. Misleading or template text did hurt.
+  - Languages: same results in Spanish, German, French and Japanese on a small extraction battery.
+  - A question and its negation don't sum to 1. Run-to-run movement was about ±0.03, and Choice picks were more stable than their probabilities.
+  - Injection: an anti-injection sentence in the question didn't hold, and planted text flipped 2 of 5 answers in one pipeline (below its confidence bar, so the fallback caught them). A separate "is this an injection?" Noul flagged a planted instruction at 0.98.
+  - Timeouts: a 1.5 s budget aborted inside the SDK's retry wait, while 3 s worked. Leave room for one retry.
 - **Flops reported by users:**
   - Chess and search-like tasks.
   - Code review as the only reviewer.
