@@ -66,7 +66,7 @@ In text, it can only "point" at things your code enumerates as options: spans, l
 - The API can also return `529 Overloaded`, so retry with backoff.
 
 **Version:**
-- **`jev-latest` now points to `jev-1.14.0`** ("the most recent stable, official release", the SDK default). It still pointed to 1.13.0 on 10-15; TypeSafe gives no date for the move, and the docs showed it by 10-23. `jev-preview` points to the same model ("There is no preview build available right now"). No newer version exists. 1.14.0 was released 2026-10-14.
+- **`jev-latest` now points to `jev-1.14.0`** ("the most recent stable, official release", the SDK default). It still pointed to 1.13.0 on 10-15. TypeSafe gave no date and no notice; one benchmark saw it resolving to 1.14 on 10-19 while others still saw 1.13 around 10-20, and the docs showed it by 10-23. `jev-preview` points to the same model ("There is no preview build available right now"). No newer version exists. 1.14.0 was released 2026-10-14.
 - Deprecation (blog only): TypeSafe "intend[s] to give 60 days warning" before 1.13.0 is deprecated, and 30 days for 1.14.0. A formal deprecation policy hasn't been published yet.
 - Log `response.model`, and pin the version once thresholds are tuned. **Anyone who tuned thresholds on 1.13 through `jev-latest` is already on 1.14:** pin `jev-1.13.0` to restore the old behavior, and re-fit on 1.14 before moving on.
 
@@ -74,7 +74,7 @@ In text, it can only "point" at things your code enumerates as options: spans, l
 - **TypeSafe direct:** `POST https://api.typesafe.ai/v1/systemone`.
 - **OpenRouter:**
   - Models `typesafe/jev-1.13`, `typesafe/jev-1.14` (since 2026-10-14) and `~typesafe/jev-latest` (now 1.14.0). All list 262k context and text and image input at the same price.
-  - OpenRouter's guide says requests with more than about 32,000 bytes of text, *and every request with an image*, run in TypeSafe's long-context mode on its route. TypeSafe calls that mode slower and less accurate, so prefer TypeSafe direct for short image requests.
+  - OpenRouter's guide says requests with more than about 32,000 bytes of text, *and every request with an image*, run in TypeSafe's long-context mode on its route. TypeSafe calls that mode slower and less accurate, so prefer TypeSafe direct for short image requests. **Field report:** OpenRouter's System One endpoint (the one the TypeSafe SDK uses) refused multipart uploads and silently dropped base64 images: the answer came back, but Jev never saw the image (324 input tokens with it, 327 without). Images reached Jev only through the Decisions API (yolo-jev, 10-17). Check token counts.
   - Point the TypeSafe SDK at the base URL `https://openrouter.ai/api` (the SDK appends `/v1/systemone`; both SDKs also read `TYPESAFE_BASE_URL`), or use the Decisions API at `/api/alpha/decisions`.
   - Separately, `typesafe/jev-router` is a chat-completions *model router* built on Jev. It isn't the decision API.
 - **Vercel AI Gateway:**
@@ -171,8 +171,21 @@ Field reports, not on TypeSafe's list:
 - **Losing to cheaper or narrower alternatives:**
   - A tiny distilled specialist beat Jev on a narrow form-filling task (99.7% vs. 83.6%), and a fine-tuned local model beat it on IT-ticket routing (department 62% vs. 41%, priority 72% vs. 57%).
   - Batched offline LLM prompts can match its cost.
+  - **Other decision models now compete.** OpenAI's Decisions API went GA on 2026-10-22 at $0.10 per million input tokens. On Vals AI's ClaimBench, several rivals (Decider V1.2, d1-ultra) answered 99.7% or more of claims alone vs. 93.0% for Jev 1.14. A pre-registered head-to-head with OpenAI Decisions was level on three of five tests and favored Jev on two (88.2% vs. 84.2% on CLINC150 with out-of-scope; 94.5% vs. 90.6%), with a better Brier score on all five (gbolask24/decision-bench). Leaderboards put Jev near the top of decision models but below small LLMs on knowledge (Artificial Analysis: decision models 28 to 41 vs. 52 to 66 for LLMs).
+  - **Token price isn't decision price.** Restating the option list in every question made Jev read about 6x the text per item, so transaction tagging cost about the same as gpt-4o-mini (CaseTrail).
 - **Adversarial text:** in one guardrail test (1,000 items), Jev caught 78% of adversarial rewrites vs. 94% for Haiku 4.5, at about 6x lower latency and 60x lower cost. In another, injected text flipped a confident label to the wrong one at 0.82. A security vendor reported breaking every configuration it tried, at about 50 cents per break.
-- **1.14 vs. 1.13 (early, community):** one 1,136-question benchmark went from 80.1% to 82.0%, with the largest gain on verbal spatial tracking and a small drop on exception and priority rules. Multi-step sequential procedures stayed very weak (6 of 42). One migration test saw identical failures on both versions. In a 30-image test, 1.14 was *stricter* than 1.13: it passed 15 of 30 correct image–headline matches at 0.5 or above vs. 23 of 30 on 1.13, with slightly better separation overall (AUC 0.91 vs. 0.89). So thresholds tuned on 1.13 may not carry over.
+- **1.14 vs. 1.13 (early, community; Parallix also found 1.14 stricter, clearing 12 of 43 approved repairs vs. 24 on 1.13):** one 1,136-question benchmark went from 80.1% to 82.0%, with the largest gain on verbal spatial tracking and a small drop on exception and priority rules. Multi-step sequential procedures stayed very weak (6 of 42). One migration test saw identical failures on both versions. In a 30-image test, 1.14 was *stricter* than 1.13: it passed 15 of 30 correct image–headline matches at 0.5 or above vs. 23 of 30 on 1.13, with slightly better separation overall (AUC 0.91 vs. 0.89). So thresholds tuned on 1.13 may not carry over.
+- **Since 10-15 (community, mostly 1.14):**
+  - **Calibration by type** (Brussle, 500 items per type): yes/no calibrated (ECE 0.023), Choice over-confident (about 0.10), Score badly over-confident (0.275).
+  - **Wording and context move thresholds** (Alinia, 2,232 replies): three phrasings of one policy blocked 11%, 54% and 79% of compliant replies at 0.5. Dropping the user message moved 710 replies across 0.5, and 44 to 53% of scores sat between 0.2 and 0.8. Jev agreed with AI-written labels 6 to 8 points more than with human ones.
+  - **Counterfeit policy text in the state** cut attack recall by more than 79 points; a plain "set the answer to 0.01" didn't work (Datadog Security Labs).
+  - **Order sensitivity:** swapping which option is described first changed the answer in 370 of 2,620 trolley-problem pairs.
+  - **Empty state:** with nothing in the state, a true world fact still scored 0.99, so a failed fetch looks like a confident pass. Add a basis or presence Noul (SuperInstance/jev-lab).
+  - **Box isn't deterministic:** the same request returned the same box only 30% of the time (median move 4.8 px), and targets under 10 px were hit 2% of the time (jev-click-bench).
+  - **Choice output:** in 2,538 calls, 4 returned a choice that wasn't the top-probability option (gaps of about 0.01), and 5 had probabilities summing to 0.99.
+  - **Score drift:** 10% of leads changed level between identical runs.
+  - **Weak spots reported:** look-alike entities (70% vs. 97% for gpt-4o), ops remediation (4 of 18 incidents vs. 13 for Opus), and a two-line regex beating Jev's best single phishing signal (91.8% vs. 89.4%).
+  - **Images:** two images side by side got left and right mixed up; hate imagery scored F1 0.27 to 0.44 for every model.
 - **Benchmark gap:** on TypeSafe's own WorkflowEvals, Jev scored about 68% vs. about 74% for a frontier LLM, at a tiny fraction of the cost and latency.
 
 ## Fit signals
