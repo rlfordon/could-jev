@@ -1,17 +1,18 @@
 # Jev factsheet
 
-Checked 2026-10-15.
+Checked 2026-10-24.
 
 **Sources:**
-- docs.typesafe.ai: models, api, primitives (including the Box page), images, confidence, state, patterns, cookbooks, SDK changelogs, and the jaggedness page for jev-1.13 (last reviewed 2026-10-02). As of 2026-10-15 there is no 1.14 jaggedness page and no product changelog.
+- docs.typesafe.ai: models, api (including openapi.json), primitives (including the Box page), images, confidence, state, patterns, cookbooks, SDK changelogs, and the jaggedness page for jev-1.13 (last reviewed 2026-10-02). As of 2026-10-24 there is still no 1.14 jaggedness page and no product changelog.
+- TypeSafe's official agent skill (`typesafe-ai/skills`, v0.6.2, 2026-10-23), which has newer design guidance than the docs.
 - TypeSafe's 1.14 announcement (typesafe.ai/blog/jev-1-14), the only official source for the `jev-latest` move and the deprecation timeline.
-- The SDK packages themselves (Python 0.7.5, JS 0.7.0, `@ai-sdk/typesafe-ai` 3.0.19).
+- The SDK packages themselves (Python 0.7.5, JS 0.7.0, `@ai-sdk/typesafe-ai` 3.0.26, `ai` 7.0.152).
 - The `typesafe-ai` GitHub org.
 - The OpenRouter Jev guide.
-- The Vercel AI Gateway docs.
+- The Vercel AI Gateway docs and model listings, and the DigitalOcean Gradient models page.
 - Community repos: aaddrick/building-with-typesafe-jev and JyothiKumar03/just-jev-it.
 
-Community numbers are self-reported. Most cookbook numbers were measured on **jev-1.12**, not 1.13; only the self-consistency cookbooks ran on 1.13. Nothing here has been re-measured on **1.14**. If something here looks stale, say so and re-check docs.typesafe.ai.
+Community numbers are self-reported. Most cookbook numbers were measured on **jev-1.12**, not 1.13; only the self-consistency cookbooks ran on 1.13. Almost nothing here has been re-measured on **1.14**, which is now the default (`jev-latest`). If something here looks stale, say so and re-check docs.typesafe.ai.
 
 ## What it is
 
@@ -25,10 +26,10 @@ In text, it can only "point" at things your code enumerates as options: spans, l
 
 | Type | Returns | Limits / gotchas |
 |---|---|---|
-| **Choice** | `choice`, `probabilities` (sum to 1), `confidence` | Max 255 options. Always picks a winner, so add `none`/`other`. Leans toward the first option; reorder to check. Probabilities are *relative*: add an absolute Noul for "is anything relevant?" |
-| **Score** | `score` (probability-weighted, can fall between levels), `legend`, `probabilities`, `confidence` | 2 to 10 ordered levels; `criteria` is an ordered list (JS SDK 0.6.0+). Don't read the expectation as an exact magnitude. |
-| **Noul** | `noul` = P(yes) | No `confidence` field. 0.5 means unsure, not "medium." Instructions are optional if `criteria` describes an outcome (SDK 0.7.5+). |
-| **Box** *(experimental, images only, jev-1.14+)* | `box` = `top`, `bottom`, `left`, `right` as fractions (0 to 1) of image height/width, with (0,0) at top-left; `confidence` 0 to 1 (the JS type allows `null` "when the API didn't report it") | `instructions` only, no `criteria`; it can be a description ("the red mug"). One box per question and no "not found" answer: ask a presence Noul in the same request and ignore the box when it's low. For several matches, describe the one you want, or add a Choice (none/one/several). Small targets in big images get missed: pick a tile with a Choice first, then Box the tile. No distribution over positions, and no recommended confidence threshold. Not exposed by the Vercel AI SDK provider. |
+| **Choice** | `choice`, `probabilities` (sum to 1), `confidence` | Max 255 options. Always picks a winner, so pair it with a Noul asking whether anything fits; TypeSafe's skill says that on 1.14 this "usually works better than a 'none of the above' option". Use descriptive option names: positional ones (`A`, `option_1`) "can bias the answer". Leans toward the first option; reorder to check. Probabilities are *relative*: add an absolute Noul for "is anything relevant?" |
+| **Score** | `score` (probability-weighted, can fall between levels), `legend`, `probabilities`, `confidence` | 2 to 10 ordered levels; `criteria` is an ordered list (JS SDK 0.6.0+). Don't read the expectation as an exact magnitude: the position "can get pulled toward the middle and hide two-peaked answers", so look at the level probabilities. Describe each level as a situation that makes sense on its own. |
+| **Noul** | `noul` = P(yes) | No `confidence` field. 0.5 means unsure, not "medium." TypeSafe's suggested starting thresholds are 0.7 (yes) and 0.3 (no), with the band between treated as unsettled. Describe `false` as a concrete situation, not "not X". Instructions are optional if `criteria` describes an outcome (SDK 0.7.5+). |
+| **Box** *(experimental, images only, jev-1.14+)* | `box` = `top`, `bottom`, `left`, `right` as fractions (0 to 1) of image height/width, with (0,0) at top-left; `confidence` 0 to 1 (the JS type allows `null` "when the API didn't report it") | `instructions` only, no `criteria`; it can be a description ("the red mug"). One box per question and no "not found" answer: ask a presence Noul in the same request and ignore the box when it's low. For several matches, describe the one you want, or add a Choice (none/one/several). Small targets in big images get missed: pick a tile with a Choice first, then Box the tile. No distribution over positions, and no recommended confidence threshold. In the Vercel AI SDK provider since 3.0.21 (`box` question type; confidence in `providerMetadata.typesafe.confidence`). |
 
 **How questions work:**
 - You can ask many named questions per request, of mixed types. They run in parallel over the same state and are blind to each other.
@@ -43,7 +44,7 @@ In text, it can only "point" at things your code enumerates as options: spans, l
 
 **State:** a string, a JSON object, or an **array of texts**, so two documents fit side by side in one request.
 
-**Budget:** 64k tokens per request direct, of which 32k is for the state plus the longest question. OpenRouter allows 32k total.
+**Budget:** 64k tokens per request direct, of which 32k is for the state plus the longest question. There is no limit on the number of questions. OpenRouter lists 262k for every Jev model, because it switches requests into long-context mode itself (see Access).
 
 **Price:** $0.042 per million input tokens; output is free. Rule of thumb: a whole question tree over 72 long documents costs under a cent.
 
@@ -51,44 +52,48 @@ In text, it can only "point" at things your code enumerates as options: spans, l
 - **Images** (`TypeSafe-Danger-Zone-Images: true` on every request with an image; jev-1.13.0 and 1.14.0):
   - Still PNG or JPEG only (animated PNG, WebP and GIF are rejected). Send them as multipart parts (recommended; base64 adds about a third) or inline `data_base64` with a `format`.
   - An image can go anywhere text can: `state`, `instructions`, `criteria`, and inside Choice options, Score levels and Noul `true`/`false` definitions. It goes in by a placeholder reference listed in an `assets` map. References are matched as plain text and object keys aren't replaced, so put an option's image in its description. Every asset must be referenced, or the request returns 400. So you can ask about one photo, compare two ("is A the product in B?"), or use reference images as Choice options.
-  - Official limits: 16 MiB per file; 256 to 1,568 px per side **and** 78,400 to 2,458,624 total pixels (so a 256×256 image is too small; a square needs about 280 px). Out-of-range images are rejected, not resized: 400 if too small, 413 if too large. Requests are capped at 32 MiB, counting each repeated use of a reference. Metadata is stripped and EXIF orientation is *not* applied, so rotate pixels first. One bad image fails the whole request.
+  - Official limits (as of 2026-10-24): 16 MiB per file; **280** to 1,568 px per side (raised from 256) and 78,400 to 2,458,624 total pixels. Out-of-range images are rejected, not resized: 400 if too small, 413 if too large. Requests are capped at 32 MiB, counting each repeated use of a reference, and all distinct images *after processing* share another 32 MiB (re-encoding can make an image bigger). Each reference key can be at most 1,024 bytes, and all of them together 65,536 bytes. Re-save progressive JPEGs as baseline. Metadata is stripped and EXIF orientation is *not* applied, so rotate pixels first. One bad image fails the whole request.
   - Billed as input tokens at the normal rate, and counted against the normal context limit. There's no official estimator yet. Reports: about 5,200 tokens for a 1181×1568 photo, about 1,600 for 1024×576, and about 2,900 for one product photo plus five questions (about $123 per million photos). **Every mention of the reference inserts the image again**, and is billed again.
   - Many people send screenshots, so Choice over numbered on-screen elements is the common shape for UI agents.
-  - Python SDK: `Image(path_or_bytes)`, `Image.from_base64`, `Image.from_pil` (`pil` extra). Neither the Python nor the JS SDK adds the opt-in header, so pass it yourself (`TypeSafeClient(headers={"TypeSafe-Danger-Zone-Images": "true"})`). JS SDK: `image()`, the `withAssets` template tag. The Vercel AI SDK provider adds the header itself. The **Vercel AI Gateway rejects files**, so use TypeSafe direct or OpenRouter.
-- **Box questions:** see the table above. Only on 1.14 (`jev-preview` for now); 1.13 rejects it with a 400. To check a box, crop to it and ask one Noul per edge ("is the object cut off at the top?"). On 36 painting crops in TypeSafe's own test, per-edge Nouls caught 30 cut-offs, one "is all of it inside?" Noul caught 26, and an outline drawn on the full image caught 20. When confidence is low, re-ask on a larger or higher-resolution crop, or pad the box.
+  - Python SDK: `Image(path_or_bytes)`, `Image.from_base64`, `Image.from_pil` (`pil` extra). Neither the Python nor the JS SDK adds the opt-in header, so pass it yourself (`TypeSafeClient(headers={"TypeSafe-Danger-Zone-Images": "true"})`, or per call with `extra_headers=`; JS `{ headers: {...} }`). JS SDK: `image()`, the `withAssets` template tag. The Vercel AI SDK provider adds the header itself. On the **Vercel AI Gateway**, the unversioned `typesafe-ai/jev` is text-only and rejects files, but since 2026-10-15 the versioned `typesafe-ai/jev-1.13.0` and `jev-1.14.0` list image input (not tested live).
+- **Box questions:** see the table above. Only on 1.14 (now `jev-latest`); 1.13 rejects it with a 400. To check a box, crop to it and ask one Noul per edge ("is the object cut off at the top?"). On 36 painting crops in TypeSafe's own test, per-edge Nouls caught 30 cut-offs, one "is all of it inside?" Noul caught 26, and an outline drawn on the full image caught 20. When confidence is low, re-ask on a larger or higher-resolution crop, or pad the box.
 - **Long context** (`TypeSafe-Danger-Zone-Long-Context: true`; 1.13 and 1.14): raises both limits to 262k tokens at the same per-token price. TypeSafe calls it slower and *less accurate* and "strongly recommend[s] limiting context length", which fits jaggedness item 3 (distractors). Windowing is still the better move.
 
 **Speed:**
 - About 0.1 to 0.4 s per request.
-- Direct rate limits are 80 req/s and 100K tok/s, and TypeSafe says these "can change without notice".
+- Rate limits are set per organization, in requests and tokens per second, and shown in the developer console (console.typesafe.ai/rate-limits); the docs no longer publish figures. Higher limits come with custom and enterprise plans. The SDKs retry 429s by default and follow `retry-after`.
 - In practice, expect 429s beyond about 8 concurrent workers per key.
 - The API can also return `529 Overloaded`, so retry with backoff.
 
 **Version:**
-- **`jev-1.14.0` was released 2026-10-14** behind `jev-preview` (which can also carry unofficial builds). `jev-latest` ("the most recent stable, official release", the SDK default) still pointed to `jev-1.13.0` on 10-15. The blog says it moves to 1.14 "in a week", with no date given, so around 10-21. Check `GET /v1/models`.
+- **`jev-latest` now points to `jev-1.14.0`** ("the most recent stable, official release", the SDK default). It still pointed to 1.13.0 on 10-15; TypeSafe gives no date for the move, and the docs showed it by 10-23. `jev-preview` points to the same model ("There is no preview build available right now"). No newer version exists. 1.14.0 was released 2026-10-14.
 - Deprecation (blog only): TypeSafe "intend[s] to give 60 days warning" before 1.13.0 is deprecated, and 30 days for 1.14.0. A formal deprecation policy hasn't been published yet.
-- Log `response.model`, and pin the version once thresholds are tuned. **If you used `jev-latest` and tuned thresholds on 1.13, pin `jev-1.13.0` now and re-fit on 1.14 before switching.**
+- Log `response.model`, and pin the version once thresholds are tuned. **Anyone who tuned thresholds on 1.13 through `jev-latest` is already on 1.14:** pin `jev-1.13.0` to restore the old behavior, and re-fit on 1.14 before moving on.
 
 **Access:**
 - **TypeSafe direct:** `POST https://api.typesafe.ai/v1/systemone`.
 - **OpenRouter:**
-  - Models `typesafe/jev-1.13` and, since 2026-10-14, `typesafe/jev-1.14` (262k context, text and image input). The SDK docs use `~typesafe/jev-latest`.
-  - Use `https://openrouter.ai/api/v1/systemone` as the base URL for the TypeSafe SDK, or the Decisions API at `/api/alpha/decisions`.
+  - Models `typesafe/jev-1.13`, `typesafe/jev-1.14` (since 2026-10-14) and `~typesafe/jev-latest` (now 1.14.0). All list 262k context and text and image input at the same price.
+  - OpenRouter's guide says requests with more than about 32,000 bytes of text, *and every request with an image*, run in TypeSafe's long-context mode on its route. TypeSafe calls that mode slower and less accurate, so prefer TypeSafe direct for short image requests.
+  - Point the TypeSafe SDK at the base URL `https://openrouter.ai/api` (the SDK appends `/v1/systemone`; both SDKs also read `TYPESAFE_BASE_URL`), or use the Decisions API at `/api/alpha/decisions`.
   - Separately, `typesafe/jev-router` is a chat-completions *model router* built on Jev. It isn't the decision API.
 - **Vercel AI Gateway:**
-  - Model `typesafe-ai/jev` (still text-only with 32k context on 10-15; no 1.14 listing), plus a generic Decision API (`/v1/evaluate`).
-  - The AI SDK provider is `@ai-sdk/typesafe-ai` (`experimental_decide()`). It **rounds probabilities to 2 decimals**.
+  - Models: `typesafe-ai/jev` (text-only, 32k; served by TypeSafe *or DigitalOcean*, and only TypeSafe has zero data retention), plus `typesafe-ai/jev-1.13.0` and `typesafe-ai/jev-1.14.0` (since 2026-10-15: text and image input, 32k context, TypeSafe only, zero data retention). There's a generic Decision API (`/v1/evaluate`), an OpenAI-compatible `/v1/decisions`, and a TypeSafe-compatible endpoint at base URL `https://ai-gateway.vercel.sh/typesafe`.
+  - **Zero data retention per request:** `providerOptions: { gateway: { zeroDataRetention: true, only: ['typesafe-ai'] } }` (Vercel Pro or Enterprise; the request fails with 400 if no ZDR provider is available). This is the setup GC AI uses for customer data.
+  - The AI SDK call is `experimental_decide()` (AI SDK 7, `ai` 7.0.128+); `experimental_evaluate` is a deprecated alias. The provider is `@ai-sdk/typesafe-ai`. Probabilities come back **rounded to 2 decimals**.
   - It has built-in **decision fallbacks**: rerun on an LLM when `confidenceBelow` or `probabilityBetween` matches. A fallback answer comes back with `confidence: 0, probabilities: {}`.
 - **Pydantic AI Gateway:** `https://gateway-us.pydantic.dev/proxy/typesafe`.
-- **n8n:** a community node with Evaluate and Route operations.
+- **DigitalOcean Gradient** serverless inference: `typesafe-jev-1.13.0` at `https://inference.do-ai.run/v1/systemone` (a passthrough; text only, 64k/32k). Not yet 1.14.
+- **Pydantic AI:** a native `TypeSafeModel` (`pydantic-ai-slim[typesafe]`, `typesafe:jev-latest`, text only).
+- **n8n:** TypeSafe's own n8n community node (`@typesafe-ai/n8n-nodes-typesafe-ai`), with Evaluate and Route operations; 0.10.0 (2026-10-20) added images, but not Box.
 
 **SDKs:**
 - Python `typesafe-sdk` 0.7.x (`TypeSafeClient`, `AsyncTypeSafeClient`). 0.7.0 moved to pydantic and added `response_model=`. 0.7.5 added `Image`, `Box`, `response.boxes`, and zstd request compression, which is on by default (Python 3.14+ or the `zstd` extra). Extras: `http2`, `pil`, `zstd`.
 - JS `@typesafe-ai/sdk` 0.7.x (needs Node 22+). 0.7.0 added images, `box()`, `withAssets`, and zstd compression for bodies of 1 KiB or more (Node 22.15+).
-- Vercel `@ai-sdk/typesafe-ai` 3.0.19 has model IDs `jev-1.13.0`, `jev-1.14.0`, `jev-latest` and `jev-preview`, plus image file parts and `longContext`. It has no Box question. `TYPESAFE_AI_BASE_URL` points it at a proxy or a compatible server.
+- Vercel `@ai-sdk/typesafe-ai` 3.0.26 has model IDs `jev-1.13.0`, `jev-1.14.0`, `jev-latest` and `jev-preview`, plus image file parts, `longContext`, the `box` question (3.0.21) and `insertReference: false` to send an image only where it's referenced (3.0.20). `TYPESAFE_AI_BASE_URL` points it at a proxy or a compatible server.
 - `system-one-adapter-python` serves the same API from an LLM, which is handy for A/B testing Jev against an LLM.
 
-**Data:** zero data retention is enterprise-only on TypeSafe direct. GC AI sends customer data only through the Vercel AI Gateway with `providerOptions: { gateway: { zeroDataRetention: true, only: ['typesafe-ai'] } }`, and uses a direct key only for public or synthetic data (their internal skill calls `experimental_evaluate` from AI SDK 7; not checked against the gateway docs).
+**Data:** zero data retention is enterprise-only on TypeSafe direct. Through the Vercel AI Gateway it's a per-request option on Pro or Enterprise plans (see Access).
 
 ```python
 from typesafe_sdk import TypeSafeClient, Choice, Score, Noul
@@ -131,17 +136,19 @@ r.answers["relevant"].noul; r.answers["kind"].choice; r.answers["kind"].probabil
 
 ## Where it breaks
 
-TypeSafe's official jaggedness list for 1.13 (9 items). As of 2026-10-15 there is no 1.14 page and no image-specific list, so assume these all still apply on 1.14.
+TypeSafe's official jaggedness list for 1.13 (9 items). As of 2026-10-24 there is still no 1.14 page and no image-specific list, so assume these all still apply on 1.14, now the default.
 
-1. **Literal reading.** Indirection, double negatives and inverted Noul criteria hurt.
-2. **Arithmetic, counting, dates, comparisons.** Do these in code. To count, ask one Noul per item and sum in code. Numeric encodings also do worse than names (e.g. hex or RGB values vs. color names).
-3. **Distractors ("context rot").** Long state with irrelevant detail lowers accuracy. Window or filter first.
-4. **Adversarial or injected state.** Not a security boundary.
-5. **Order bias** toward the first Choice option.
-6. **Score magnitudes.** Don't interpolate exact magnitudes from a Score.
+1. **Literal reading.** It answers the question you wrote, not the one you meant: scoping words, negations and implied conditions are read at face value. Put boundary cases in the criteria.
+2. **Math and numbers.** Arithmetic, counting and comparisons go in code. To count, ask one Noul per item and sum in code. Numeric encodings do worse than names (e.g. hex or RGB values vs. color names). Don't interpolate exact magnitudes from a Score.
+3. **Date and time comparison.** Do date math in code.
+4. **Indirection.** Double negatives, a property of a property, and multi-hop questions cost accuracy. Write instructions directly and name the relevant parts of the state.
+5. **Large state full of irrelevant detail ("context rot").** Window or filter first.
+6. **Adversarial content.** Not a security boundary.
 7. **Contradictory instructions and criteria.** When `instructions` and `criteria` disagree, results degrade.
-8. **Text only.** English is strongest. *Since 1.14 (2026-10-14), images are an experimental opt-in; audio and video are still unsupported.* There's no official image jaggedness list; TypeSafe says all models do worse on images than on text.
+8. **Choice option order.** A lean toward the first option.
 9. **Generation.** It isn't trained to generate text.
+
+Also: English is strongest. Images are an experimental opt-in since 1.14 (2026-10-14); audio and video are unsupported. There's no official image jaggedness list; TypeSafe says all models do worse on images than on text.
 
 Field reports, not on TypeSafe's list:
 
@@ -174,4 +181,4 @@ Field reports, not on TypeSafe's list:
 - **LLM:** you need prose output or a rationale/audit trail; the options aren't known; it needs a retrieval or tool loop mid-decision; or it takes multi-hop reasoning.
 - **Code:** arithmetic, dates, exact lookups, known rules, regex-findable units, security rules, threshold policy.
 - **Images (experimental):** the judgment is visible at a glance (damaged? same product? is the element on screen?), and a crop or a pair of images holds the evidence. Not for pixel-exact geometry, and nothing should go to production before TypeSafe drops the "danger zone" label.
-- **Always:** add `none` or an absolute Noul; validate on in-domain labels, including hard cases; log the model version.
+- **Always:** add an absolute "does anything fit?" Noul (on 1.14 TypeSafe prefers it to a `none` option; field reports on 1.13 found `none` helped too); validate on in-domain labels, including hard cases; log the model version.
