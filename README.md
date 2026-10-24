@@ -23,8 +23,8 @@ It doesn't call Jev itself. It's a design gut-check.
 | File | What it is |
 |---|---|
 | `SKILL.md` | The instructions and answer format. |
-| `patterns.md` | Rules of thumb, "worth testing" hunches, and 32 Jev patterns grouped by what they unlock, each tagged TESTED, DOCUMENTED, COMMUNITY, or UNTRIED. |
-| `capabilities.md` | Factsheet: question types, limits, price, speed, access, failure modes. Checked 2026-10-15. Re-check docs.typesafe.ai if it looks stale. |
+| `patterns.md` | Rules of thumb, "worth testing" hunches, and 36 Jev patterns grouped by what they unlock, each tagged TESTED, DOCUMENTED, COMMUNITY, or UNTRIED. |
+| `capabilities.md` | Factsheet: question types, limits, price, speed, access, failure modes. Checked 2026-10-24. Re-check docs.typesafe.ai if it looks stale. |
 | `history-template.md` | The starting shape of your personal experiment log. |
 
 ## Your own history
