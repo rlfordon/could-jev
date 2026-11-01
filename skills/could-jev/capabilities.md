@@ -1,6 +1,6 @@
 # Jev factsheet
 
-Checked 2026-10-24.
+Checked 2026-11-01.
 
 **Sources:**
 - docs.typesafe.ai: models, api (including openapi.json), primitives (including the Box page), images, confidence, state, patterns, cookbooks, SDK changelogs, and the jaggedness page for jev-1.13 (last reviewed 2026-10-02). As of 2026-10-24 there is still no 1.14 jaggedness page and no product changelog.
